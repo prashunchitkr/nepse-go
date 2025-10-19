@@ -2,7 +2,7 @@
 package http
 
 import (
-	"log"
+	"net/http"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/prashunchitkr/nepse-go/internal/auth"
@@ -20,12 +20,27 @@ func NewHTTPClient(inner *resty.Client, auth *auth.AuthHandler) *HTTPClient {
 	}
 
 	inner.OnBeforeRequest(func(client *resty.Client, req *resty.Request) error {
-		log.Printf("[HttpClient] URL: %s\n", req.URL)
+		if req.URL == "/authenticate/prove" {
+			return nil
+		}
+
 		token, err := c.auth.GetToken(req.Context())
 		if err != nil {
 			return err
 		}
+
 		req.SetHeader("Authorization", "Salter "+token.AccessToken)
+		return nil
+	})
+
+	inner.OnAfterResponse(func(client *resty.Client, resp *resty.Response) error {
+		if resp.StatusCode() == http.StatusUnauthorized {
+			// TODO: Handle refresh logic
+			return nil
+		}
+
+		// TODO: Handle retry logic
+
 		return nil
 	})
 

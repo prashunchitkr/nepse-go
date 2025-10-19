@@ -25,10 +25,10 @@ type AuthHandler struct {
 	mu     sync.Mutex
 	token  *Token
 	wasm   *WasmHelper
-	client resty.Client
+	client *resty.Client
 }
 
-func NewAuthHandler(client resty.Client, cssWasm *WasmHelper) *AuthHandler {
+func NewAuthHandler(client *resty.Client, cssWasm *WasmHelper) *AuthHandler {
 	return &AuthHandler{
 		client: client,
 		wasm:   cssWasm,

@@ -40,7 +40,7 @@ func NewClient() *Client {
 		log.Fatalf("Error initializing wasm: %v", err)
 	}
 
-	authHandler := auth.NewAuthHandler(*restyClient, wasmHelper)
+	authHandler := auth.NewAuthHandler(restyClient, wasmHelper)
 
 	internalHTTPClient := internalHttp.NewHTTPClient(restyClient, authHandler)
 
