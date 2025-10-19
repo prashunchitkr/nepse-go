@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	BASEURL = "https://nepalstock.com.np/api"
+	baseURL = "https://nepalstock.com.np/api"
 )
 
 type Client struct {
@@ -28,7 +28,7 @@ func NewClient() *Client {
 			InsecureSkipVerify: true,
 		}).
 		SetTimeout(5 * time.Second).
-		SetBaseURL(BASEURL).
+		SetBaseURL(baseURL).
 		SetHeaders(map[string]string{
 			"User-Agent":   "Mozilla/5.0 (X11; Linux i686; rv:136.0) Gecko/20100101 Firefox/136.0",
 			"Content-Type": "application/json",
@@ -40,7 +40,7 @@ func NewClient() *Client {
 		log.Fatalf("Error initializing wasm: %v", err)
 	}
 
-	authHandler := auth.NewAuthHandler(restyClient, wasmHelper)
+	authHandler := auth.NewAuthHandler(*restyClient, wasmHelper)
 
 	internalHTTPClient := internalHttp.NewHTTPClient(restyClient, authHandler)
 

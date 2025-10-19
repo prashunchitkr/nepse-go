@@ -25,10 +25,10 @@ type AuthHandler struct {
 	mu     sync.Mutex
 	token  *Token
 	wasm   *WasmHelper
-	client *resty.Client
+	client resty.Client
 }
 
-func NewAuthHandler(client *resty.Client, cssWasm *WasmHelper) *AuthHandler {
+func NewAuthHandler(client resty.Client, cssWasm *WasmHelper) *AuthHandler {
 	return &AuthHandler{
 		client: client,
 		wasm:   cssWasm,
@@ -39,12 +39,12 @@ func (a *AuthHandler) GetToken(ctx context.Context) (*Token, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	var prove apitypes.Prove
 	if a.token != nil && time.Now().Before(a.token.Expiry) {
 		log.Printf("[AuthHandler] Returning old token: %v\n", a.token)
 		return a.token, nil
 	}
 
+	var prove apitypes.Prove
 	resp, err := a.client.R().
 		SetContext(ctx).
 		SetResult(&prove).
@@ -68,11 +68,16 @@ func (a *AuthHandler) GetToken(ctx context.Context) (*Token, error) {
 		return nil, err
 	}
 
+	dummyID, err := a.getDummyID(ctx, accessToken)
+	if err != nil {
+		return nil, err
+	}
+
 	a.token = &Token{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		Expiry:       expiry,
-		DummyID:      -1,
+		DummyID:      dummyID,
 	}
 
 	return a.token, nil

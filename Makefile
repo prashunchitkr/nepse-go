@@ -7,7 +7,7 @@ BUILD_DIR=./bin
 GO=go
 GOFLAGS=-ldflags="-s -w"
 TEST_FLAGS?=-parallel 4
-SOURCES=$(shell find $(SRC_DIR) -type f -name '*.go') go.mod go.sum
+SOURCES=$(shell find . -type f -name '*.go') go.mod go.sum
 
 # Default target
 all: build
