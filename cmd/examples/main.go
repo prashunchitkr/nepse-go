@@ -20,5 +20,9 @@ func main() {
 		log.Fatalf("error: %v", err)
 	}
 
+	for _, security := range *securities {
+		fmt.Println(security.Name)
+	}
+
 	log.Printf("Retrieved %d securities", len(*securities))
 }

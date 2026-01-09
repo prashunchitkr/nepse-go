@@ -21,7 +21,7 @@ var lut = []int{
 }
 
 func extractDate(dateTimeStr string) (int, error) {
-	layout := "2006-01-02T15:00:00"
+	layout := "2006-01-02T15:04:05.999999999"
 	t, err := time.Parse(layout, dateTimeStr)
 	if err != nil {
 		return -1, err
@@ -31,7 +31,6 @@ func extractDate(dateTimeStr string) (int, error) {
 }
 
 func (a *AuthHandler) getDummyID(ctx context.Context, accessToken string) (int, error) {
-	log.Printf("Getting dummy id")
 	var marketOpen apitypes.MarketOpen
 
 	resp, err := a.client.R().
