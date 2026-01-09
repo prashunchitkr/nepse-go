@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	apitypes "github.com/prashunchitkr/nepse-go/internal/types"
