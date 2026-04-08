@@ -11,6 +11,12 @@ type MarketService struct {
 	client *client.Client
 }
 
+func NewMarketService(c *client.Client) *MarketService {
+	return &MarketService{
+		client: c,
+	}
+}
+
 func (m *MarketService) GetSummary(ctx context.Context) ([]*models.Index, error) {
 	var result []*models.Index
 

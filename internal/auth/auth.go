@@ -13,6 +13,12 @@ type Manager struct {
 	session *session.Manager
 }
 
+func NewManager(session *session.Manager) *Manager {
+	return &Manager{
+		session: session,
+	}
+}
+
 func (a *Manager) Authenticate(ctx context.Context) error {
 	return fmt.Errorf("not implemented")
 }

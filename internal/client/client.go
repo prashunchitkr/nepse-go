@@ -17,6 +17,15 @@ type Client struct {
 	baseURL    string
 }
 
+func NewClient(httpClient *http.Client, session *session.Manager, auth *auth.Manager, baseUrl string) *Client {
+	return &Client{
+		httpClient: httpClient,
+		session:    session,
+		auth:       auth,
+		baseURL:    baseUrl,
+	}
+}
+
 func (c *Client) Get(ctx context.Context, endpoint string, result any) error {
 	return errors.New("not implemented")
 }
