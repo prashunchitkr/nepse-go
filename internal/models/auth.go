@@ -11,6 +11,6 @@ type Prove struct {
 	Salt3           uint32 `json:"salt3"`
 	Salt4           uint32 `json:"salt4"`
 	Salt5           uint32 `json:"salt5"`
-	IsDisplayActive bool   `json:"idDisplayActive"`
+	IsDisplayActive bool   `json:"isDisplayActive"`
 	PopupDocFor     string `json:"popupDocFor"`
 }
