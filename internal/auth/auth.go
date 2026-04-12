@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/prashunchitkr/nepse-go/internal/models"
@@ -27,41 +28,14 @@ func NewManager(session *session.Manager, publicClient *http.Client, baseURL str
 	}
 }
 
-// Authenticate forces a new prove exchange.
-func (a *Manager) Authenticate(ctx context.Context) error {
-	return a.Prove(ctx)
-}
+func (a *Manager) Authenticate(ctx context.Context) error { return a.prove(ctx) }
+func (a *Manager) Refresh(ctx context.Context) error      { return a.prove(ctx) }
 
-// Prove forces a new prove exchange.
-func (a *Manager) Prove(ctx context.Context) error {
+func (a *Manager) prove(ctx context.Context) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.proveUnlocked(ctx)
-}
 
-// Refresh re-runs prove (e.g. after 401).
-func (a *Manager) Refresh(ctx context.Context) error {
-	return a.Prove(ctx)
-}
-
-func (a *Manager) ensureProved(ctx context.Context) error {
-	if _, ok := a.session.SalterAuthorization(); ok {
-		return nil
-	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if _, ok := a.session.SalterAuthorization(); ok {
-		return nil
-	}
-	return a.proveUnlocked(ctx)
-}
-
-func (a *Manager) proveUnlocked(ctx context.Context) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.baseURL+"/api/authenticate/prove", http.NoBody)
-	if err != nil {
-		return err
-	}
-
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, a.baseURL+"/api/authenticate/prove", nil)
 	resp, err := a.publicClient.Do(req)
 	if err != nil {
 		return err
@@ -72,40 +46,47 @@ func (a *Manager) proveUnlocked(ctx context.Context) error {
 		return fmt.Errorf("prove: unexpected status %s", resp.Status)
 	}
 
-	var prove models.Prove
-
-	if err := json.NewDecoder(resp.Body).Decode(&prove); err != nil {
-		return fmt.Errorf("prove: decode body: %w", err)
+	var p models.Prove
+	if err := json.NewDecoder(resp.Body).Decode(&p); err != nil {
+		return fmt.Errorf("prove: decode: %w", err)
 	}
 
-	salter := deriveSalterToken(&prove)
-	a.session.SetFromProve(&prove, salter)
+	a.session.SetFromProve(&p, deriveSalterToken(&p))
 	return nil
 }
 
 func (a *Manager) InjectHeaders(req *http.Request) error {
-	if err := a.ensureProved(req.Context()); err != nil {
-		return err
+	// Double-checked locking to ensure we only prove once
+	if _, ok := a.session.SalterAuthorization(); !ok {
+		if err := a.prove(req.Context()); err != nil {
+			return err
+		}
 	}
+
 	token, ok := a.session.SalterAuthorization()
 	if !ok {
-		return fmt.Errorf("prove: session missing salter after successful prove")
+		return fmt.Errorf("auth: session missing after prove")
 	}
+
 	req.Header.Set("Authorization", "Salter "+token)
 	return nil
 }
 
 func deriveSalterToken(p *models.Prove) string {
-	idx1 := cdx(int32(p.Salt1), int32(p.Salt2), int32(p.Salt3), int32(p.Salt4), int32(p.Salt4))
-	idx2 := rdx(int32(p.Salt1), int32(p.Salt2), int32(p.Salt3), int32(p.Salt4), int32(p.Salt4))
-	idx3 := bdx(int32(p.Salt1), int32(p.Salt2), int32(p.Salt3), int32(p.Salt4), int32(p.Salt4))
-	idx4 := ndx(int32(p.Salt1), int32(p.Salt2), int32(p.Salt3), int32(p.Salt4), int32(p.Salt4))
-	idx5 := mdx(int32(p.Salt1), int32(p.Salt2), int32(p.Salt3), int32(p.Salt4), int32(p.Salt4))
+	s1, s2, s3, s4, s5 := int32(p.Salt1), int32(p.Salt2), int32(p.Salt3), int32(p.Salt4), int32(p.Salt5)
 
-	return p.AccessToken[:idx1] +
-		p.AccessToken[idx1+1:idx2] +
-		p.AccessToken[idx2+1:idx3] +
-		p.AccessToken[idx3+1:idx4] +
-		p.AccessToken[idx4+1:idx5] +
-		p.AccessToken[idx5+1:]
+	idxs := []int32{
+		cdx(s1, s2, s3, s4, s5),
+		rdx(s1, s2, s3, s4, s5),
+		bdx(s1, s2, s3, s4, s5),
+		ndx(s1, s2, s3, s4, s5),
+		mdx(s1, s2, s3, s4, s5),
+	}
+
+	var res strings.Builder
+	res.WriteString(p.AccessToken[:idxs[0]])
+	for i := 0; i < len(idxs)-1; i++ {
+		res.WriteString(p.AccessToken[idxs[i]+1 : idxs[i+1]])
+	}
+	return res.String() + p.AccessToken[idxs[4]+1:]
 }
