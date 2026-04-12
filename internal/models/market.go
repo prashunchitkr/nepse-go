@@ -1,6 +1,6 @@
 package models
 
-// Hard Coded Index IDs
+// Exchange Index IDs
 const (
 	SensitiveIdxID      = 57
 	NepseIdxID          = 58
@@ -8,8 +8,8 @@ const (
 	FloatSensitiveIdxID = 63
 )
 
-type Index struct {
-	ID               int32   `json:"id"`
+type NepseIndex struct {
+	ID               uint32  `json:"id"`
 	AuditID          any     `json:"auditId"`
 	ExchangeIndexID  any     `json:"exchangeIndexId"`
 	GeneratedTime    string  `json:"generatedTime"`

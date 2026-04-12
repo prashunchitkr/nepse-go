@@ -46,6 +46,10 @@ func NewClient(options ...Option) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) GetSummary(ctx context.Context) ([]*models.Index, error) {
-	return c.marketService.GetSummary(ctx)
+func (c *Client) GetNepseIndex(ctx context.Context) ([]*models.NepseIndex, error) {
+	return c.marketService.GetNepseIndex(ctx)
+}
+
+func (c *Client) GetSecurities(ctx context.Context, nonDelisted bool) ([]*models.Security, error) {
+	return c.marketService.GetSecurities(ctx, nonDelisted)
 }
