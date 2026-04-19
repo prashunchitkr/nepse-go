@@ -1,12 +1,7 @@
-package apitypes
-
-const (
-	ACTIVE   = 'A'
-	INACTIVE = "I"
-)
+package models
 
 type Security struct {
-	ID           uint64 `json:"id"`
+	ID           uint32 `json:"id"`
 	Symbol       string `json:"symbol"`
 	SecurityName string `json:"securityName"`
 	Name         string `json:"name"`

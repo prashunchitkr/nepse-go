@@ -3,82 +3,90 @@ package auth
 
 import (
 	"context"
-	"errors"
-	"log"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
 	"sync"
-	"time"
 
-	"github.com/go-resty/resty/v2"
-	apitypes "github.com/prashunchitkr/nepse-go/internal/types"
+	"github.com/prashunchitkr/nepse-go/internal/models"
+	"github.com/prashunchitkr/nepse-go/internal/session"
 )
 
-// Token Holds auth data
-type Token struct {
-	AccessToken  string
-	RefreshToken string
-	Expiry       time.Time
-	DummyID      int
+type Manager struct {
+	session      *session.Manager
+	publicClient *http.Client
+	baseURL      string
+	mu           sync.Mutex
 }
 
-// AuthHandler manages token lifecycle
-type AuthHandler struct {
-	mu     sync.Mutex
-	token  *Token
-	wasm   *WasmHelper
-	client resty.Client
-}
-
-func NewAuthHandler(client resty.Client, cssWasm *WasmHelper) *AuthHandler {
-	return &AuthHandler{
-		client: client,
-		wasm:   cssWasm,
+func NewManager(session *session.Manager, publicClient *http.Client, baseURL string) *Manager {
+	return &Manager{
+		session:      session,
+		publicClient: publicClient,
+		baseURL:      baseURL,
 	}
 }
 
-func (a *AuthHandler) GetToken(ctx context.Context) (*Token, error) {
+func (a *Manager) Authenticate(ctx context.Context) error { return a.prove(ctx) }
+func (a *Manager) Refresh(ctx context.Context) error      { return a.prove(ctx) }
+
+func (a *Manager) prove(ctx context.Context) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if a.token != nil && time.Now().Before(a.token.Expiry) {
-		log.Printf("[AuthHandler] Returning old token: %v\n", a.token)
-		return a.token, nil
-	}
-
-	var prove apitypes.Prove
-	resp, err := a.client.R().
-		SetContext(ctx).
-		SetResult(&prove).
-		Get("/authenticate/prove")
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, a.baseURL+"/api/authenticate/prove", nil)
+	resp, err := a.publicClient.Do(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if resp.IsError() {
-		return nil, errors.New("getting prove failed: " + resp.Status())
-	}
+	defer resp.Body.Close()
 
-	expiry := time.Now().Add(45 * time.Second)
-
-	accessToken, err := a.decodeAccessToken(ctx, prove)
-	if err != nil {
-		return nil, err
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("prove: unexpected status %s", resp.Status)
 	}
 
-	refreshToken, err := a.decodeRefreshToken(ctx, prove)
-	if err != nil {
-		return nil, err
+	var p models.Prove
+	if err := json.NewDecoder(resp.Body).Decode(&p); err != nil {
+		return fmt.Errorf("prove: decode: %w", err)
 	}
 
-	dummyID, err := a.getDummyID(ctx, accessToken)
-	if err != nil {
-		return nil, err
+	a.session.SetFromProve(&p, deriveSalterToken(&p))
+	return nil
+}
+
+func (a *Manager) InjectHeaders(req *http.Request) error {
+	// Double-checked locking to ensure we only prove once
+	if _, ok := a.session.SalterAuthorization(); !ok {
+		if err := a.prove(req.Context()); err != nil {
+			return err
+		}
 	}
 
-	a.token = &Token{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		Expiry:       expiry,
-		DummyID:      dummyID,
+	token, ok := a.session.SalterAuthorization()
+	if !ok {
+		return fmt.Errorf("auth: session missing after prove")
 	}
 
-	return a.token, nil
+	req.Header.Set("Authorization", "Salter "+token)
+	return nil
+}
+
+func deriveSalterToken(p *models.Prove) string {
+	s1, s2, s3, s4, s5 := int32(p.Salt1), int32(p.Salt2), int32(p.Salt3), int32(p.Salt4), int32(p.Salt5)
+
+	idxs := []int32{
+		cdx(s1, s2, s3, s4, s5),
+		rdx(s1, s2, s3, s4, s5),
+		bdx(s1, s2, s3, s4, s5),
+		ndx(s1, s2, s3, s4, s5),
+		mdx(s1, s2, s3, s4, s5),
+	}
+
+	var res strings.Builder
+	res.WriteString(p.AccessToken[:idxs[0]])
+	for i := 0; i < len(idxs)-1; i++ {
+		res.WriteString(p.AccessToken[idxs[i]+1 : idxs[i+1]])
+	}
+	return res.String() + p.AccessToken[idxs[4]+1:]
 }

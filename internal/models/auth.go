@@ -1,17 +1,16 @@
-// Package apitypes
-package apitypes
+package models
 
 type Prove struct {
 	ServerTime      uint64 `json:"serverTime"`
 	Salt            string `json:"salt"`
 	AccessToken     string `json:"accessToken"`
-	RefreshToken    string `json:"refreshToken"`
 	TokenType       string `json:"tokenType"`
-	Salt1           uint64 `json:"salt1"`
-	Salt2           uint64 `json:"salt2"`
-	Salt3           uint64 `json:"salt3"`
-	Salt4           uint64 `json:"salt4"`
-	Salt5           uint64 `json:"salt5"`
+	RefreshToken    string `json:"refreshToken"`
+	Salt1           uint32 `json:"salt1"`
+	Salt2           uint32 `json:"salt2"`
+	Salt3           uint32 `json:"salt3"`
+	Salt4           uint32 `json:"salt4"`
+	Salt5           uint32 `json:"salt5"`
 	IsDisplayActive bool   `json:"isDisplayActive"`
 	PopupDocFor     string `json:"popupDocFor"`
 }
